@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ProgrammingExercise": {
+      "commandName": "Project",
+      "commandLineArgs": " email1 email2 input2.csv"
+    }
+  }
+}

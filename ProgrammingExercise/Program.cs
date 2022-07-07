@@ -16,17 +16,26 @@ namespace ProgrammingExercise
     {
         static void Main(string[] args)
         {
+            Stopwatch sw    = Stopwatch.StartNew();
+            sw.Start();
 
 
-            ArgumentsVerification(args);
-            ProcessMatching(args);
+            ProcessMatching(ref args);
+
+            sw.Stop();
+            Console.WriteLine($"{sw.Elapsed.TotalMinutes} minutes elapsed");
+            Console.Beep(); Console.Beep(); Console.Beep();
+            Console.Beep();
 
 
         }
 
 
-        private static void ArgumentsVerification(string[] args)
+        private static string[] ArgumentsVerification(string[] args, string[] headerRow)
         {
+
+            List<string> args2 = new List<string>();
+
             //Check number of args entered
             if (args.Length < 2)
             {
@@ -46,23 +55,41 @@ namespace ProgrammingExercise
                     continue;
                 }
 
-                //check if matching types arguments are valid (ignore case)
-                if (!Enum.TryParse<MatchingTypesEnum>(args[i], true, out MatchingTypesEnum matchingType))
-                {
-                    throw new ArgumentException($"Invalid matching type argument '{args[i]}'");
-                }
 
-                args[i] = matchingType.ToString(); ;
+                headerRow.Where(c => c.Contains(args[i])).ToList().ForEach(x =>
+                {
+                    if (!args2.Contains(x))
+                    {
+                        args2.Add(x);
+                    }
+                });
+
+
+
+
+
+                ////check if matching types arguments are valid (ignore case)
+                //if (!Enum.TryParse<MatchingTypesEnum>(args[i], true, out MatchingTypesEnum matchingType))
+                //{
+                //    throw new ArgumentException($"Invalid matching type argument '{args[i]}'");
+                //}
+
+
+
+
+                //args[i] = matchingType.ToString(); ;
 
             }
+
+            return args2.ToArray();
         }
 
-        private static void ProcessMatching(string[] args)
+        private static void ProcessMatching(ref string[] args)
         {
 
 
             //read the csv file input
-            var records = ReadCsvFile(args);
+            var records = ReadCsvFile(ref args);
 
 
             //Matches all records based on given matching-type arguments
@@ -78,11 +105,13 @@ namespace ProgrammingExercise
 
         private static void FindMatchesByType(string[] args, List<dynamic> records)
         {
+            List<IGrouping<string, dynamic>> groupedByFilterCopy = null;
+
             //foreach filter
-            for (int i = 0; i < args.Length - 1; i++)
+            for (int i = 0; i <= args.Length - 1; i++)
             {
 
-                //Example : Phone , Email
+                //Example : Email1 , Email2
                 var filter = args[i];
 
                 //Group all  records by current matching type (filter)
@@ -92,34 +121,138 @@ namespace ProgrammingExercise
                                  ? Guid.NewGuid().ToString()
                                  : ((IDictionary<string, object>)x)[filter].ToString()
                             )
-                    .Select(group => group.ToList())
                     .ToList();
+                //.Select(group => group.ToList())
+
+
 
 
                 foreach (var group in groupedByFilter)
                 {
-                    //If group contains a record that was already matched previously (isMatched=true) then set that id to every records in that group
-                    //Else, generate a new Id for the whole group, because none were matched previously
-                    var matched_record = group.FirstOrDefault(x => x.isMatched == true);
-                    var unique_identifier = matched_record == null ? Guid.NewGuid().ToString() : matched_record.Uid;
+                    string unique_identifier;
+                    var groupCount = group.Count();
 
+                    // Check if any of the record is already Matched
+                    var matched_records = group.Where(record => record.isMatched == true).ToList();
 
-                    foreach (var record in group)
+                    //Matches found
+                    if (matched_records.Count > 0)
                     {
-                        //update the record's id 
-                        record.Uid = unique_identifier;
+                        unique_identifier = Guid.NewGuid().ToString();
 
-                        //only set the record's isMatched=true if the group contains more than just one record
-                        //(otherwise its not a match because there is only one record in that group..)
-                        if (group.Count > 1)
+                        //a list of ids..
+                        var ids_of_already_matched_records = matched_records.Select(r => r.Uid).ToList();
+                        // I want to get all the records where their Id matches any in the list above from the groupByList
+                        var records_to_update = groupedByFilter.SelectMany(group => group.Where(record => ids_of_already_matched_records.Contains(record.Uid))).ToList();
+
+
+                        foreach (var rec in records_to_update)
                         {
-                            record.isMatched = true;
+                            rec.Uid = unique_identifier;
+                            rec.isMatched = true;
                         }
+
+                        foreach (var rec in group)
+                        {
+                            rec.Uid = unique_identifier;
+                            rec.isMatched = true;
+
+                        }
+
+
                     }
+                    //No Matches
+                    else
+                    {
+
+                        if (groupedByFilterCopy is null)
+                        {
+                            //Todo: creer new Id .. a revoir..
+                            unique_identifier = Guid.NewGuid().ToString();
+                            foreach (var record in group)
+                            {
+                                record.Uid = unique_identifier;
+                                if (groupCount > 1)
+                                {
+                                    record.isMatched = true;
+                                }
+                            }
+                        }
+                        else
+                        {
+
+                           
+
+                            var existing_group = groupedByFilterCopy.FirstOrDefault(g => g.Key == group.Key);
+                            if (existing_group != null)
+                            {
+
+
+                                //exist
+                                var id = existing_group.First().Uid;
+                                var records_to_update = groupedByFilter.SelectMany(group => group.Where(record => record.Uid == id)).ToList();
+                                foreach (var rec in records_to_update)
+                                {
+                                    rec.isMatched = true;
+                                }
+                             
+                                foreach (var rec in group)
+                                {
+                                    rec.Uid = id;
+                                    rec.isMatched = true;
+
+                                }
+
+
+
+                            }
+                            else
+                            {
+                                unique_identifier = Guid.NewGuid().ToString();
+                                foreach (var rec in group)
+                                {
+                                    rec.Uid = unique_identifier;
+                                    if (group.Count() > 1)
+                                    {
+                                        rec.isMatched = true;
+                                    }
+                                   
+
+                                }
+                            }
+
+
+
+
+
+                        }
+
+
+
+                    }
+
+
+
                 }
 
-                //Flattent the list back to normal 
-                records = groupedByFilter.SelectMany(x => x).ToList();
+                var previousFilter = filter;
+
+
+                if (i != args.Length - 1)
+                {
+                    if (args[i + 1].StartsWith(filter.Substring(0, 3)))
+                    {
+                        //Copy the previous groupedByFilter List
+                        groupedByFilterCopy = new List<IGrouping<string, dynamic>>(groupedByFilter);
+                    }
+                    else
+                    {
+                        groupedByFilterCopy = null;
+                    }
+
+                    //Flattent the list back to normal 
+                    records = groupedByFilter.SelectMany(x => x).ToList();
+                }
             }
 
 
@@ -127,14 +260,17 @@ namespace ProgrammingExercise
 
         }
 
-        private static List<dynamic> ReadCsvFile(string[] args)
+        private static List<dynamic> ReadCsvFile(ref string[] args)
         {
             List<dynamic> records;
             using (var reader = new StreamReader(args[args.Length - 1]))
             //Fill up the record list from the csv file 
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
+                csv.Read();
+                csv.ReadHeader();
 
+                args = ArgumentsVerification(args, csv.HeaderRecord);
 
                 records = csv.GetRecords<dynamic>().ToList();
                 foreach (var record in records)
@@ -158,7 +294,7 @@ namespace ProgrammingExercise
 
         private static void WriteCsvFile(List<dynamic> records)
         {
-            using (var writer = new StreamWriter("output.csv"))
+            using (var writer = new StreamWriter("outputBOSS.csv"))
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
 

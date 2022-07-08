@@ -8,28 +8,45 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace ProgrammingExercise
 {
     internal class Program
     {
+        private static Stopwatch sw = Stopwatch.StartNew();
+
+
+
         static void Main(string[] args)
         {
-            Stopwatch sw    = Stopwatch.StartNew();
+
             sw.Start();
 
 
+            //var rec1 = "johnd@home.com".Split(' ');
+            //var rec2 = "janed@home.com johnd@home.com".Split(' ');
+
+            ////var result = rec1.Split(' ').Contains(rec2);
+            //var commonElements = rec2.Intersect(rec1).ToArray();
+
             ProcessMatching(ref args);
 
-            sw.Stop();
-            Console.WriteLine($"{sw.Elapsed.TotalMinutes} minutes elapsed");
-            Console.Beep(); Console.Beep(); Console.Beep();
-            Console.Beep();
+
+
+            //sw.Stop();
+            //Console.WriteLine($"{sw.Elapsed.TotalMinutes} minutes elapsed");
+            //Console.Beep();
 
 
         }
-
+        private static string RemoveWhitespace(string input)
+        {
+            return new string(input.ToCharArray()
+                .Where(c => !Char.IsWhiteSpace(c))
+                .ToArray());
+        }
 
         private static string[] ArgumentsVerification(string[] args, string[] headerRow)
         {
@@ -105,157 +122,97 @@ namespace ProgrammingExercise
 
         private static void FindMatchesByType(string[] args, List<dynamic> records)
         {
-            List<IGrouping<string, dynamic>> groupedByFilterCopy = null;
 
-            //foreach filter
-            for (int i = 0; i <= args.Length - 1; i++)
+            Dictionary<string, List<dynamic>> matches = new Dictionary<string, List<dynamic>>();
+
+
+            //foreach record
+            foreach (var record in records)
             {
 
-                //Example : Email1 , Email2
-                var filter = args[i];
-
-                //Group all  records by current matching type (filter)
-                var groupedByFilter = records
-                    .GroupBy(x =>
-                                 string.IsNullOrEmpty(((IDictionary<string, object>)x)[filter].ToString())
-                                 ? Guid.NewGuid().ToString()
-                                 : ((IDictionary<string, object>)x)[filter].ToString()
-                            )
-                    .ToList();
-                //.Select(group => group.ToList())
 
 
 
-
-                foreach (var group in groupedByFilter)
+                string record_string = string.Empty;
+                for (int i = 0; i < args.Length; i++)
                 {
-                    string unique_identifier;
-                    var groupCount = group.Count();
+                    record_string = record_string + " " + ((IDictionary<string, object>)record)[args[i]].ToString();
+                }
 
-                    // Check if any of the record is already Matched
-                    var matched_records = group.Where(record => record.isMatched == true).ToList();
+                var record_array = record_string.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-                    //Matches found
-                    if (matched_records.Count > 0)
+
+
+
+                var key = matches.Keys.FirstOrDefault(key => (key.Split(' ').Intersect(record_array)).Count() > 0);
+
+
+                if (key == null)
+                {
+
+
+                    //var rec = matches.Values.SelectMany(x => x)
+                    //    .FirstOrDefault(r =>
+                    //    ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone1"].ToString())) ? false : record.Phone1 == r.Phone1) ||
+                    //    ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone2"].ToString())) ? false : record.Phone2 == r.Phone2) ||
+                    //    ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email1"].ToString())) ? false : record.Email1 == r.Email1) ||
+                    //    ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email2"].ToString())) ? false : record.Email2 == r.Email2)
+                    //    );
+
+                    var rec = matches.Values.SelectMany(x => x)
+                       .FirstOrDefault(r =>
+                       ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone"].ToString())) ? false : record.Phone == r.Phone) ||
+                       ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email"].ToString())) ? false : record.Email == r.Email)
+                       );
+
+
+                    if (rec == null)
                     {
-                        unique_identifier = Guid.NewGuid().ToString();
-
-                        //a list of ids..
-                        var ids_of_already_matched_records = matched_records.Select(r => r.Uid).ToList();
-                        // I want to get all the records where their Id matches any in the list above from the groupByList
-                        var records_to_update = groupedByFilter.SelectMany(group => group.Where(record => ids_of_already_matched_records.Contains(record.Uid))).ToList();
-
-
-                        foreach (var rec in records_to_update)
-                        {
-                            rec.Uid = unique_identifier;
-                            rec.isMatched = true;
-                        }
-
-                        foreach (var rec in group)
-                        {
-                            rec.Uid = unique_identifier;
-                            rec.isMatched = true;
-
-                        }
-
-
+                        matches.Add(string.Join(" ", record_array), new List<dynamic>() { record });
                     }
-                    //No Matches
                     else
                     {
 
-                        if (groupedByFilterCopy is null)
-                        {
-                            //Todo: creer new Id .. a revoir..
-                            unique_identifier = Guid.NewGuid().ToString();
-                            foreach (var record in group)
-                            {
-                                record.Uid = unique_identifier;
-                                if (groupCount > 1)
-                                {
-                                    record.isMatched = true;
-                                }
-                            }
-                        }
-                        else
-                        {
-
-                           
-
-                            var existing_group = groupedByFilterCopy.FirstOrDefault(g => g.Key == group.Key);
-                            if (existing_group != null)
-                            {
-
-
-                                //exist
-                                var id = existing_group.First().Uid;
-                                var records_to_update = groupedByFilter.SelectMany(group => group.Where(record => record.Uid == id)).ToList();
-                                foreach (var rec in records_to_update)
-                                {
-                                    rec.isMatched = true;
-                                }
-                             
-                                foreach (var rec in group)
-                                {
-                                    rec.Uid = id;
-                                    rec.isMatched = true;
-
-                                }
-
-
-
-                            }
-                            else
-                            {
-                                unique_identifier = Guid.NewGuid().ToString();
-                                foreach (var rec in group)
-                                {
-                                    rec.Uid = unique_identifier;
-                                    if (group.Count() > 1)
-                                    {
-                                        rec.isMatched = true;
-                                    }
-                                   
-
-                                }
-                            }
-
-
-
-
-
-                        }
-
-
+                        record.Uid = rec.Uid;
+                        matches.Add(string.Join(" ", record_array), new List<dynamic>() { record });
 
                     }
 
 
-
                 }
-
-                var previousFilter = filter;
-
-
-                if (i != args.Length - 1)
+                else
                 {
-                    if (args[i + 1].StartsWith(filter.Substring(0, 3)))
-                    {
-                        //Copy the previous groupedByFilter List
-                        groupedByFilterCopy = new List<IGrouping<string, dynamic>>(groupedByFilter);
-                    }
-                    else
-                    {
-                        groupedByFilterCopy = null;
-                    }
 
-                    //Flattent the list back to normal 
-                    records = groupedByFilter.SelectMany(x => x).ToList();
+                    var matching_records = matches[key];
+                    record.Uid = matching_records.First().Uid;
+                    matching_records.Add(record);
                 }
+
+
             }
 
 
+            sw.Stop();
+            Console.WriteLine($"{sw.Elapsed.TotalMinutes} minutes");
+
+            records = matches.Values.SelectMany(x => x).ToList();
+
+
+
+            foreach (var record in records)
+            {
+                Console.Write($"{record.Uid} - ");
+                foreach (var filter in args)
+                {
+                    if (((IDictionary<string, object>)record).ContainsKey(filter))
+                    {
+                        Console.Write(((IDictionary<string, object>)record)[filter].ToString());
+                    }
+                   
+
+                }
+                Console.WriteLine();
+            }
 
 
         }
@@ -273,19 +230,27 @@ namespace ProgrammingExercise
                 args = ArgumentsVerification(args, csv.HeaderRecord);
 
                 records = csv.GetRecords<dynamic>().ToList();
+
                 foreach (var record in records)
                 {
                     var obj = record as ExpandoObject;
+                    ((IDictionary<string, object>)obj)["Uid"] = Guid.NewGuid().ToString();
 
-                    if (obj != null)
+                    foreach (var filter in args)
                     {
+                        ((IDictionary<string, object>)obj)[filter] = RemoveWhitespace(((IDictionary<string, object>)obj)[filter].ToString());
 
-                        ((IDictionary<string, object>)obj)["Uid"] = Guid.NewGuid().ToString();
-                        ((IDictionary<string, object>)obj)["isMatched"] = false;
-
-                        //var keys = obj.Select(a => a.Key).ToList();
-                        //var values = obj.Select(a => a.Value).ToList();
                     }
+
+
+
+
+
+
+
+
+                    //var keys = obj.Select(a => a.Key).ToList();
+                    //var values = obj.Select(a => a.Value).ToList
                 }
             }
 
@@ -334,7 +299,10 @@ namespace ProgrammingExercise
 
         }
 
-
+        private static bool HasProperty(ExpandoObject obj, string propertyName)
+        {
+            return obj != null && ((IDictionary<String, object>)obj).ContainsKey(propertyName);
+        }
     }
 
 

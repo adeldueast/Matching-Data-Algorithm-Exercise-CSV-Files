@@ -21,51 +21,48 @@ namespace ProgrammingExercise
 
         static void Main(string[] args)
         {
-
-
-
-
             ProcessMatching(ref args);
-
-
             Console.ReadKey();
-
-
         }
 
 
-        private static string[] ArgumentsVerification(string[] args, string[] headerRow)
+        private static string[] ArgumentsVerification(string[] arguments, string[] headerRow)
         {
 
             List<string> args2 = new List<string>();
 
             //Check number of args entered
-            if (args.Length < 2)
+            if (arguments.Length < 2)
             {
                 throw new ArgumentOutOfRangeException("The program should take at least two parameters");
             }
-            for (int i = args.Length - 1; i >= 0; i--)
+
+
+            for (int i = arguments.Length - 1; i >= 0; i--)
             {
                 //check if file entered exists
-                if (i == args.Length - 1)
+                if (i == arguments.Length - 1)
                 {
-                    //check if files exist
-                    if (!File.Exists(args[i]))
+
+                    if (!File.Exists(arguments[i]))
                     {
-                        throw new FileNotFoundException(args[i]);
+                        throw new FileNotFoundException(arguments[i]);
                     }
 
                     continue;
                 }
 
 
-                headerRow.Where(c => c.Contains(args[i])).ToList().ForEach(x =>
-                {
-                    if (!args2.Contains(x))
-                    {
-                        args2.Add(x);
-                    }
-                });
+
+                //Adds 
+                headerRow.Where(c => c.StartsWith(arguments[i],StringComparison.OrdinalIgnoreCase)).ToList().ForEach(x =>
+               {
+                   if (!args2.Contains(x))
+                   {
+                       args2.Add(x);
+                   }
+
+               });
 
 
 

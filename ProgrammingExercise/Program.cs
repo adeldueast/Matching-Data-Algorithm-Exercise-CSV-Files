@@ -1,5 +1,6 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,28 +9,37 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace ProgrammingExercise
 {
     internal class Program
     {
+        private static Stopwatch sw = new Stopwatch();
+
+
+
         static void Main(string[] args)
         {
-            Stopwatch sw    = Stopwatch.StartNew();
-            sw.Start();
+
+
 
 
             ProcessMatching(ref args);
 
-            sw.Stop();
-            Console.WriteLine($"{sw.Elapsed.TotalMinutes} minutes elapsed");
-            Console.Beep(); Console.Beep(); Console.Beep();
-            Console.Beep();
+
+            Console.ReadKey();
 
 
         }
 
+        private static string RemoveWhitespace(string input)
+        {
+            return new string(input.ToCharArray()
+                .Where(c => !Char.IsWhiteSpace(c))
+                .ToArray());
+        }
 
         private static string[] ArgumentsVerification(string[] args, string[] headerRow)
         {
@@ -86,184 +96,39 @@ namespace ProgrammingExercise
 
         private static void ProcessMatching(ref string[] args)
         {
-
-
+            sw.Start();
             //read the csv file input
-            var records = ReadCsvFile(ref args);
+            var lists = ReadCsvFile(ref args);
+
+            sw.Stop();
+            Console.WriteLine($"READING {sw.Elapsed.TotalMilliseconds} milliseconds");
 
 
+            sw.Restart();
             //Matches all records based on given matching-type arguments
-            FindMatchesByType(args, records);
+            FindMatchesByType(args, lists.Item1, lists.Item2);
+            sw.Stop();
+            Console.WriteLine($"PROCESSING {sw.Elapsed.TotalMilliseconds} milliseconds");
 
 
+            sw.Restart();
             //write the csv file output
-            WriteCsvFile(records.OrderBy(x => x.Uid).ToList());
+            WriteCsvFile(lists.Item1.OrderBy(x => x.Uid).ToList());
+            sw.Stop();
+            Console.WriteLine($"WRITING {sw.Elapsed.TotalMilliseconds} milliseconds");
 
 
 
         }
 
-        private static void FindMatchesByType(string[] args, List<dynamic> records)
+        private static (List<dynamic>, List<dynamic>) ReadCsvFile(ref string[] args)
         {
-            List<IGrouping<string, dynamic>> groupedByFilterCopy = null;
+            List<dynamic> records = new List<dynamic>();
+            List<dynamic> duplicates = new List<dynamic>();
 
-            //foreach filter
-            for (int i = 0; i <= args.Length - 1; i++)
-            {
-
-                //Example : Email1 , Email2
-                var filter = args[i];
-
-                //Group all  records by current matching type (filter)
-                var groupedByFilter = records
-                    .GroupBy(x =>
-                                 string.IsNullOrEmpty(((IDictionary<string, object>)x)[filter].ToString())
-                                 ? Guid.NewGuid().ToString()
-                                 : ((IDictionary<string, object>)x)[filter].ToString()
-                            )
-                    .ToList();
-                //.Select(group => group.ToList())
-
-
-
-
-                foreach (var group in groupedByFilter)
-                {
-                    string unique_identifier;
-                    var groupCount = group.Count();
-
-                    // Check if any of the record is already Matched
-                    var matched_records = group.Where(record => record.isMatched == true).ToList();
-
-                    //Matches found
-                    if (matched_records.Count > 0)
-                    {
-                        unique_identifier = Guid.NewGuid().ToString();
-
-                        //a list of ids..
-                        var ids_of_already_matched_records = matched_records.Select(r => r.Uid).ToList();
-                        // I want to get all the records where their Id matches any in the list above from the groupByList
-                        var records_to_update = groupedByFilter.SelectMany(group => group.Where(record => ids_of_already_matched_records.Contains(record.Uid))).ToList();
-
-
-                        foreach (var rec in records_to_update)
-                        {
-                            rec.Uid = unique_identifier;
-                            rec.isMatched = true;
-                        }
-
-                        foreach (var rec in group)
-                        {
-                            rec.Uid = unique_identifier;
-                            rec.isMatched = true;
-
-                        }
-
-
-                    }
-                    //No Matches
-                    else
-                    {
-
-                        if (groupedByFilterCopy is null)
-                        {
-                            //Todo: creer new Id .. a revoir..
-                            unique_identifier = Guid.NewGuid().ToString();
-                            foreach (var record in group)
-                            {
-                                record.Uid = unique_identifier;
-                                if (groupCount > 1)
-                                {
-                                    record.isMatched = true;
-                                }
-                            }
-                        }
-                        else
-                        {
-
-                           
-
-                            var existing_group = groupedByFilterCopy.FirstOrDefault(g => g.Key == group.Key);
-                            if (existing_group != null)
-                            {
-
-
-                                //exist
-                                var id = existing_group.First().Uid;
-                                var records_to_update = groupedByFilter.SelectMany(group => group.Where(record => record.Uid == id)).ToList();
-                                foreach (var rec in records_to_update)
-                                {
-                                    rec.isMatched = true;
-                                }
-                             
-                                foreach (var rec in group)
-                                {
-                                    rec.Uid = id;
-                                    rec.isMatched = true;
-
-                                }
-
-
-
-                            }
-                            else
-                            {
-                                unique_identifier = Guid.NewGuid().ToString();
-                                foreach (var rec in group)
-                                {
-                                    rec.Uid = unique_identifier;
-                                    if (group.Count() > 1)
-                                    {
-                                        rec.isMatched = true;
-                                    }
-                                   
-
-                                }
-                            }
-
-
-
-
-
-                        }
-
-
-
-                    }
-
-
-
-                }
-
-                var previousFilter = filter;
-
-
-                if (i != args.Length - 1)
-                {
-                    if (args[i + 1].StartsWith(filter.Substring(0, 3)))
-                    {
-                        //Copy the previous groupedByFilter List
-                        groupedByFilterCopy = new List<IGrouping<string, dynamic>>(groupedByFilter);
-                    }
-                    else
-                    {
-                        groupedByFilterCopy = null;
-                    }
-
-                    //Flattent the list back to normal 
-                    records = groupedByFilter.SelectMany(x => x).ToList();
-                }
-            }
-
-
-
-
-        }
-
-        private static List<dynamic> ReadCsvFile(ref string[] args)
-        {
-            List<dynamic> records;
+            //Reads the file in args
             using (var reader = new StreamReader(args[args.Length - 1]))
+
             //Fill up the record list from the csv file 
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
@@ -273,23 +138,118 @@ namespace ProgrammingExercise
                 args = ArgumentsVerification(args, csv.HeaderRecord);
 
                 records = csv.GetRecords<dynamic>().ToList();
+
+
+
                 foreach (var record in records)
                 {
-                    var obj = record as ExpandoObject;
+                    var rec = ((IDictionary<string, object>)record);
 
-                    if (obj != null)
+                    rec["Uid"] = Guid.NewGuid().ToString();
+                    rec["isMatched"] = false;
+
+
+                    foreach (var filter in args)
                     {
+                       
+                        var clone = DeepCopy(record);
 
-                        ((IDictionary<string, object>)obj)["Uid"] = Guid.NewGuid().ToString();
-                        ((IDictionary<string, object>)obj)["isMatched"] = false;
+                        var filterValue = rec[filter] as string;
+                        if (!string.IsNullOrEmpty(filterValue))
+                        {
 
-                        //var keys = obj.Select(a => a.Key).ToList();
-                        //var values = obj.Select(a => a.Value).ToList();
+                            clone.matchingValue = RemoveWhitespace(filterValue);
+                            clone.originalIndex = records.IndexOf(rec);
+
+                            duplicates.Add(clone);
+                        }
+
+
+
+                    }
+
+                
+                }
+
+
+            }
+
+            return (records, duplicates);
+        }
+
+        private static void FindMatchesByType(string[] args, List<dynamic> records, List<dynamic> duplicates)
+        {
+
+
+            var groupedBy = duplicates.GroupBy(x => x.matchingValue);
+
+
+            foreach (var group in groupedBy)
+            {
+
+
+
+                //this gets the original records REFERENCES from the original list 
+                var groupSortedByOriginalisMatched = group.Select(record =>
+                       records[record.originalIndex]
+                );
+
+
+                var groupCount = groupSortedByOriginalisMatched.Count();
+
+                string unique_identifier = groupSortedByOriginalisMatched.FirstOrDefault(record =>
+                  record.isMatched == true
+                 )?.Uid;
+
+                if (unique_identifier is null)
+                {
+                    unique_identifier = Guid.NewGuid().ToString();
+                }
+
+                foreach (var originalRecord in groupSortedByOriginalisMatched)
+                {
+
+
+
+                    originalRecord.Uid = unique_identifier;
+
+                    if (groupCount > 1)
+                    {
+                        originalRecord.isMatched = true;
                     }
                 }
             }
 
-            return records;
+
+
+
+
+            //foreach (var record in records)
+            //{
+            //    Console.Write($"{record.Uid} - ");
+            //    foreach (var filter in args)
+            //    {
+            //        if (((IDictionary<string, object>)record).ContainsKey(filter))
+            //        {
+            //            Console.Write(((IDictionary<string, object>)record)[filter].ToString());
+            //        }
+            //    }
+            //    Console.WriteLine();
+            //}
+
+        }
+
+        static ExpandoObject DeepCopy(ExpandoObject original)
+        {
+            var clone = new ExpandoObject();
+
+            var _original = (IDictionary<string, object>)original;
+            var _clone = (IDictionary<string, object>)clone;
+
+            foreach (var kvp in _original)
+                _clone.Add(kvp.Key, kvp.Value is ExpandoObject ? DeepCopy((ExpandoObject)kvp.Value) : kvp.Value);
+
+            return clone;
         }
 
         private static void WriteCsvFile(List<dynamic> records)
@@ -334,7 +294,7 @@ namespace ProgrammingExercise
 
         }
 
-
+      
     }
 
 

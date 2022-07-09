@@ -25,14 +25,7 @@ namespace ProgrammingExercise
             sw.Start();
 
 
-            //var rec1 = "johnd@home.com".Split(' ');
-            //var rec2 = "janed@home.com johnd@home.com".Split(' ');
-
-            ////var result = rec1.Split(' ').Contains(rec2);
-            //var commonElements = rec2.Intersect(rec1).ToArray();
-
             ProcessMatching(ref args);
-
 
 
             //sw.Stop();
@@ -41,6 +34,7 @@ namespace ProgrammingExercise
 
 
         }
+
         private static string RemoveWhitespace(string input)
         {
             return new string(input.ToCharArray()
@@ -126,6 +120,8 @@ namespace ProgrammingExercise
             Dictionary<string, List<dynamic>> matches = new Dictionary<string, List<dynamic>>();
 
 
+
+
             //foreach record
             foreach (var record in records)
             {
@@ -133,37 +129,45 @@ namespace ProgrammingExercise
 
 
 
-                string record_string = string.Empty;
-                for (int i = 0; i < args.Length; i++)
-                {
-                    record_string = record_string + " " + ((IDictionary<string, object>)record)[args[i]].ToString();
-                }
-
-                var record_array = record_string.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                //string record_string = string.Empty;
+                //for (int i = 0; i < args.Length; i++)
+                //{
+                //    record_string = record_string + " " + ((IDictionary<string, object>)record)[args[i]].ToString();
+                //}
 
 
+                //var record_array = record_string.Split(' ', StringSplitOptions.RemoveEmptyEntries);uncomment when its time to make the whole thing dynamic
+
+                //but for now, just hardcode..
+
+                var record_array = ($"{record.Phone1} {record.Phone2} {record.Email1} {record.Email2}").Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
 
-                var key = matches.Keys.FirstOrDefault(key => (key.Split(' ').Intersect(record_array)).Count() > 0);
+
+                //["uber",]
+
+
+                // var key = matches.Keys.FirstOrDefault(key => (key.Split(' ').Intersect(record_array)).Count() > 0);
+                var key = matches.Keys.FirstOrDefault(key => record_array.Any(key.Contains));
 
 
                 if (key == null)
                 {
 
 
-                    //var rec = matches.Values.SelectMany(x => x)
-                    //    .FirstOrDefault(r =>
-                    //    ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone1"].ToString())) ? false : record.Phone1 == r.Phone1) ||
-                    //    ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone2"].ToString())) ? false : record.Phone2 == r.Phone2) ||
-                    //    ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email1"].ToString())) ? false : record.Email1 == r.Email1) ||
-                    //    ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email2"].ToString())) ? false : record.Email2 == r.Email2)
-                    //    );
-
                     var rec = matches.Values.SelectMany(x => x)
-                       .FirstOrDefault(r =>
-                       ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone"].ToString())) ? false : record.Phone == r.Phone) ||
-                       ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email"].ToString())) ? false : record.Email == r.Email)
-                       );
+                        .FirstOrDefault(r =>
+                        ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone1"].ToString())) ? false : record.Phone1 == r.Phone1) ||
+                        ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone2"].ToString())) ? false : record.Phone2 == r.Phone2) ||
+                        ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email1"].ToString())) ? false : record.Email1 == r.Email1) ||
+                        ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email2"].ToString())) ? false : record.Email2 == r.Email2)
+                        );
+
+                    //var rec = matches.Values.SelectMany(x => x)
+                    //   .FirstOrDefault(r =>
+                    //   ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone"].ToString())) ? false : record.Phone == r.Phone) ||
+                    //   ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email"].ToString())) ? false : record.Email == r.Email)
+                    //   );
 
 
                     if (rec == null)
@@ -199,20 +203,20 @@ namespace ProgrammingExercise
 
 
 
-            foreach (var record in records)
-            {
-                Console.Write($"{record.Uid} - ");
-                foreach (var filter in args)
-                {
-                    if (((IDictionary<string, object>)record).ContainsKey(filter))
-                    {
-                        Console.Write(((IDictionary<string, object>)record)[filter].ToString());
-                    }
-                   
+            //foreach (var record in records)
+            //{
+            //    Console.Write($"{record.Uid} - ");
+            //    foreach (var filter in args)
+            //    {
+            //        if (((IDictionary<string, object>)record).ContainsKey(filter))
+            //        {
+            //            Console.Write(((IDictionary<string, object>)record)[filter].ToString());
+            //        }
 
-                }
-                Console.WriteLine();
-            }
+
+            //    }
+            //    Console.WriteLine();
+            //}
 
 
         }

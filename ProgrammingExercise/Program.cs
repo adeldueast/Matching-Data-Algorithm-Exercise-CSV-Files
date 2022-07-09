@@ -1,6 +1,5 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -34,12 +33,6 @@ namespace ProgrammingExercise
 
         }
 
-        private static string RemoveWhitespace(string input)
-        {
-            return new string(input.ToCharArray()
-                .Where(c => !Char.IsWhiteSpace(c))
-                .ToArray());
-        }
 
         private static string[] ArgumentsVerification(string[] args, string[] headerRow)
         {
@@ -111,7 +104,7 @@ namespace ProgrammingExercise
         {
             List<dynamic> records = new List<dynamic>();
             ICollection<(string, int)> records_values = new List<(string, int)>();
-
+            Regex phone_regex = new Regex("[^a-zA-Z0-9]");
 
             //Reads the file in args
             using (var reader = new StreamReader(args[args.Length - 1]))
@@ -128,17 +121,20 @@ namespace ProgrammingExercise
                 foreach (var record in records)
                 {
                     var rec = ((IDictionary<string, object>)record);
-
-                    rec["Uid"] = Guid.NewGuid().ToString();
+                    rec["Uid"] = string.Empty;
                     rec["isMatched"] = false;
-                    rec["originalIndex"] = index;
 
                     foreach (var filter in args)
                     {
                         var filterValue = rec[filter] as string;
+
                         if (!string.IsNullOrEmpty(filterValue))
                         {
-                            filterValue = RemoveWhitespace(filterValue);
+                            if (filter.StartsWith("Phone"))
+                            {
+                                filterValue = (phone_regex.Replace(filterValue, ""));
+
+                            }
                             records_values.Add((filterValue, index));
                         }
                     }
@@ -152,6 +148,7 @@ namespace ProgrammingExercise
 
             return (records, records_values.AsEnumerable());
         }
+
 
         private static void FindMatchesByType(string[] args, List<dynamic> records, IEnumerable<(string, int)> records_values)
         {
@@ -215,26 +212,12 @@ namespace ProgrammingExercise
 
         }
 
-        static ExpandoObject DeepCopy(ExpandoObject original)
-        {
-            var clone = new ExpandoObject();
-
-            var _original = (IDictionary<string, object>)original;
-            var _clone = (IDictionary<string, object>)clone;
-
-            foreach (var kvp in _original)
-                _clone.Add(kvp.Key, kvp.Value is ExpandoObject ? DeepCopy((ExpandoObject)kvp.Value) : kvp.Value);
-
-            return clone;
-        }
 
         private static void WriteCsvFile(List<dynamic> records)
         {
             using (var writer = new StreamWriter("output.csv"))
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
-
-
 
                 var recordDictionary = (IDictionary<string, object>)records.First();
 
@@ -269,6 +252,19 @@ namespace ProgrammingExercise
 
         }
 
+        #region HELPER METHODS
+        private static string RemoveWhitespace(string input)
+        {
+            return new string(input.ToCharArray()
+                .Where(c => !Char.IsWhiteSpace(c))
+                .ToArray());
+        }
+        private static string StripAllButDigits(string s)
+        {
+            return (s == null) ? string.Empty : Regex.Replace(s, @"\\D", string.Empty);
+        }
+
+        #endregion
 
     }
 

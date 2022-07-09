@@ -2,7 +2,7 @@
   "profiles": {
     "ProgrammingExercise": {
       "commandName": "Project",
-      "commandLineArgs": "Phone  Email input3.csv"
+      "commandLineArgs": "Phone  input3.csv"
     }
   }
 }

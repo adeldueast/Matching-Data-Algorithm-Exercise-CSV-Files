@@ -171,6 +171,7 @@ namespace ProgrammingExercise
         {
 
 
+            //Grouping by values to be matched (phones and emails or others)
             var groupedBy = records_values.GroupBy(x => x.Item1);
 
 
@@ -178,16 +179,17 @@ namespace ProgrammingExercise
             {
 
 
-
+                     /* THIS IS THE CORE DIFFERENCE */
                 //this gets the original records REFERENCES from the original list 
-                var groupSortedByOriginalisMatched = group.Select(record =>
+                var original_records = group.Select(record =>
+                       //transorm current group's record to original records using Item2 wich is the index in the original list
                        records[record.Item2]
                 );
 
 
-                var groupCount = groupSortedByOriginalisMatched.Count();
+                var groupCount = original_records.Count();
 
-                string unique_identifier = groupSortedByOriginalisMatched.FirstOrDefault(record =>
+                string unique_identifier = original_records.FirstOrDefault(record =>
                   record.isMatched == true
                  )?.Uid;
 
@@ -196,14 +198,14 @@ namespace ProgrammingExercise
                     unique_identifier = Guid.NewGuid().ToString();
                 }
 
-                foreach (var originalRecord in groupSortedByOriginalisMatched)
+                foreach (var record in original_records)
                 {
 
-                    originalRecord.Uid = unique_identifier;
+                    record.Uid = unique_identifier;
 
                     if (groupCount > 1)
                     {
-                        originalRecord.isMatched = true;
+                        record.isMatched = true;
                     }
                 }
             }

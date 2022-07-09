@@ -78,17 +78,6 @@ namespace ProgrammingExercise
 
 
 
-                ////check if matching types arguments are valid (ignore case)
-                //if (!Enum.TryParse<MatchingTypesEnum>(args[i], true, out MatchingTypesEnum matchingType))
-                //{
-                //    throw new ArgumentException($"Invalid matching type argument '{args[i]}'");
-                //}
-
-
-
-
-                //args[i] = matchingType.ToString(); ;
-
             }
 
             return args2.ToArray();
@@ -99,7 +88,6 @@ namespace ProgrammingExercise
             sw.Start();
             //read the csv file input
             var lists = ReadCsvFile(ref args);
-
             sw.Stop();
             Console.WriteLine($"READING {sw.Elapsed.TotalMilliseconds} milliseconds");
 
@@ -116,8 +104,6 @@ namespace ProgrammingExercise
             WriteCsvFile(lists.Item1.OrderBy(x => x.Uid).ToList());
             sw.Stop();
             Console.WriteLine($"WRITING {sw.Elapsed.TotalMilliseconds} milliseconds");
-
-
 
         }
 
@@ -179,7 +165,7 @@ namespace ProgrammingExercise
             {
 
 
-                     /* THIS IS THE CORE DIFFERENCE */
+                /* THIS IS THE CORE DIFFERENCE */
                 //this gets the original records REFERENCES from the original list 
                 var original_records = group.Select(record =>
                        //transorm current group's record to original records using Item2 wich is the index in the original list
@@ -244,10 +230,9 @@ namespace ProgrammingExercise
 
         private static void WriteCsvFile(List<dynamic> records)
         {
-            using (var writer = new StreamWriter("outputBOSS.csv"))
+            using (var writer = new StreamWriter("output.csv"))
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
-
 
 
 

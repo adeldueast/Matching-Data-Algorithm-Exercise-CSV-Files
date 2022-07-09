@@ -121,67 +121,57 @@ namespace ProgrammingExercise
 
         }
 
-        private static (List<dynamic>, List<dynamic>) ReadCsvFile(ref string[] args)
+        private static (List<dynamic>, IEnumerable<(string, int)>) ReadCsvFile(ref string[] args)
         {
             List<dynamic> records = new List<dynamic>();
-            List<dynamic> duplicates = new List<dynamic>();
+            ICollection<(string, int)> records_values = new List<(string, int)>();
+
 
             //Reads the file in args
             using (var reader = new StreamReader(args[args.Length - 1]))
-
             //Fill up the record list from the csv file 
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
                 csv.Read();
                 csv.ReadHeader();
-
                 args = ArgumentsVerification(args, csv.HeaderRecord);
-
                 records = csv.GetRecords<dynamic>().ToList();
 
 
-
+                int index = 0;
                 foreach (var record in records)
                 {
                     var rec = ((IDictionary<string, object>)record);
 
                     rec["Uid"] = Guid.NewGuid().ToString();
                     rec["isMatched"] = false;
-
+                    rec["originalIndex"] = index;
 
                     foreach (var filter in args)
                     {
-                       
-                        var clone = DeepCopy(record);
-
                         var filterValue = rec[filter] as string;
                         if (!string.IsNullOrEmpty(filterValue))
                         {
-
-                            clone.matchingValue = RemoveWhitespace(filterValue);
-                            clone.originalIndex = records.IndexOf(rec);
-
-                            duplicates.Add(clone);
+                            filterValue = RemoveWhitespace(filterValue);
+                            records_values.Add((filterValue, index));
                         }
-
-
-
                     }
 
-                
+                    index++;
+
                 }
 
 
             }
 
-            return (records, duplicates);
+            return (records, records_values.AsEnumerable());
         }
 
-        private static void FindMatchesByType(string[] args, List<dynamic> records, List<dynamic> duplicates)
+        private static void FindMatchesByType(string[] args, List<dynamic> records, IEnumerable<(string, int)> records_values)
         {
 
 
-            var groupedBy = duplicates.GroupBy(x => x.matchingValue);
+            var groupedBy = records_values.GroupBy(x => x.Item1);
 
 
             foreach (var group in groupedBy)
@@ -191,7 +181,7 @@ namespace ProgrammingExercise
 
                 //this gets the original records REFERENCES from the original list 
                 var groupSortedByOriginalisMatched = group.Select(record =>
-                       records[record.originalIndex]
+                       records[record.Item2]
                 );
 
 
@@ -208,8 +198,6 @@ namespace ProgrammingExercise
 
                 foreach (var originalRecord in groupSortedByOriginalisMatched)
                 {
-
-
 
                     originalRecord.Uid = unique_identifier;
 
@@ -294,7 +282,7 @@ namespace ProgrammingExercise
 
         }
 
-      
+
     }
 
 

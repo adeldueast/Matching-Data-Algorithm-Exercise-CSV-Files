@@ -1,5 +1,6 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,22 +16,20 @@ namespace ProgrammingExercise
 {
     internal class Program
     {
-        private static Stopwatch sw = Stopwatch.StartNew();
+        private static Stopwatch sw = new Stopwatch();
 
 
 
         static void Main(string[] args)
         {
 
-            sw.Start();
+
 
 
             ProcessMatching(ref args);
 
 
-            //sw.Stop();
-            //Console.WriteLine($"{sw.Elapsed.TotalMinutes} minutes elapsed");
-            //Console.Beep();
+            Console.ReadKey();
 
 
         }
@@ -97,109 +96,131 @@ namespace ProgrammingExercise
 
         private static void ProcessMatching(ref string[] args)
         {
-
-
+            sw.Start();
             //read the csv file input
-            var records = ReadCsvFile(ref args);
+            var lists = ReadCsvFile(ref args);
+
+            sw.Stop();
+            Console.WriteLine($"READING {sw.Elapsed.TotalMilliseconds} milliseconds");
 
 
+            sw.Restart();
             //Matches all records based on given matching-type arguments
-            FindMatchesByType(args, records);
+            FindMatchesByType(args, lists.Item1, lists.Item2);
+            sw.Stop();
+            Console.WriteLine($"PROCESSING {sw.Elapsed.TotalMilliseconds} milliseconds");
 
 
+            sw.Restart();
             //write the csv file output
-            WriteCsvFile(records.OrderBy(x => x.Uid).ToList());
+            WriteCsvFile(lists.Item1.OrderBy(x => x.Uid).ToList());
+            sw.Stop();
+            Console.WriteLine($"WRITING {sw.Elapsed.TotalMilliseconds} milliseconds");
 
 
 
         }
 
-        private static void FindMatchesByType(string[] args, List<dynamic> records)
+        private static (List<dynamic>, List<dynamic>) ReadCsvFile(ref string[] args)
         {
+            List<dynamic> records = new List<dynamic>();
+            List<dynamic> duplicates = new List<dynamic>();
 
-            Dictionary<string, List<dynamic>> matches = new Dictionary<string, List<dynamic>>();
+            //Reads the file in args
+            using (var reader = new StreamReader(args[args.Length - 1]))
 
-
-
-
-            //foreach record
-            foreach (var record in records)
+            //Fill up the record list from the csv file 
+            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
+                csv.Read();
+                csv.ReadHeader();
+
+                args = ArgumentsVerification(args, csv.HeaderRecord);
+
+                records = csv.GetRecords<dynamic>().ToList();
 
 
 
-
-                //string record_string = string.Empty;
-                //for (int i = 0; i < args.Length; i++)
-                //{
-                //    record_string = record_string + " " + ((IDictionary<string, object>)record)[args[i]].ToString();
-                //}
-
-
-                //var record_array = record_string.Split(' ', StringSplitOptions.RemoveEmptyEntries);uncomment when its time to make the whole thing dynamic
-
-                //but for now, just hardcode..
-
-                var record_array = ($"{record.Phone1} {record.Phone2} {record.Email1} {record.Email2}").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-
-
-                //["uber",]
-
-
-                // var key = matches.Keys.FirstOrDefault(key => (key.Split(' ').Intersect(record_array)).Count() > 0);
-                var key = matches.Keys.FirstOrDefault(key => record_array.Any(key.Contains));
-
-
-                if (key == null)
+                foreach (var record in records)
                 {
+                    var rec = ((IDictionary<string, object>)record);
+
+                    rec["Uid"] = Guid.NewGuid().ToString();
+                    rec["isMatched"] = false;
 
 
-                    var rec = matches.Values.SelectMany(x => x)
-                        .FirstOrDefault(r =>
-                        ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone1"].ToString())) ? false : record.Phone1 == r.Phone1) ||
-                        ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone2"].ToString())) ? false : record.Phone2 == r.Phone2) ||
-                        ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email1"].ToString())) ? false : record.Email1 == r.Email1) ||
-                        ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email2"].ToString())) ? false : record.Email2 == r.Email2)
-                        );
-
-                    //var rec = matches.Values.SelectMany(x => x)
-                    //   .FirstOrDefault(r =>
-                    //   ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Phone"].ToString())) ? false : record.Phone == r.Phone) ||
-                    //   ((string.IsNullOrEmpty(((IDictionary<string, object>)record)["Email"].ToString())) ? false : record.Email == r.Email)
-                    //   );
-
-
-                    if (rec == null)
+                    foreach (var filter in args)
                     {
-                        matches.Add(string.Join(" ", record_array), new List<dynamic>() { record });
-                    }
-                    else
-                    {
+                       
+                        var clone = DeepCopy(record);
 
-                        record.Uid = rec.Uid;
-                        matches.Add(string.Join(" ", record_array), new List<dynamic>() { record });
+                        var filterValue = rec[filter] as string;
+                        if (!string.IsNullOrEmpty(filterValue))
+                        {
+
+                            clone.matchingValue = RemoveWhitespace(filterValue);
+                            clone.originalIndex = records.IndexOf(rec);
+
+                            duplicates.Add(clone);
+                        }
+
+
 
                     }
 
-
-                }
-                else
-                {
-
-                    var matching_records = matches[key];
-                    record.Uid = matching_records.First().Uid;
-                    matching_records.Add(record);
+                
                 }
 
 
             }
 
+            return (records, duplicates);
+        }
 
-            sw.Stop();
-            Console.WriteLine($"{sw.Elapsed.TotalMinutes} minutes");
+        private static void FindMatchesByType(string[] args, List<dynamic> records, List<dynamic> duplicates)
+        {
 
-            records = matches.Values.SelectMany(x => x).ToList();
+
+            var groupedBy = duplicates.GroupBy(x => x.matchingValue);
+
+
+            foreach (var group in groupedBy)
+            {
+
+
+
+                //this gets the original records REFERENCES from the original list 
+                var groupSortedByOriginalisMatched = group.Select(record =>
+                       records[record.originalIndex]
+                );
+
+
+                var groupCount = groupSortedByOriginalisMatched.Count();
+
+                string unique_identifier = groupSortedByOriginalisMatched.FirstOrDefault(record =>
+                  record.isMatched == true
+                 )?.Uid;
+
+                if (unique_identifier is null)
+                {
+                    unique_identifier = Guid.NewGuid().ToString();
+                }
+
+                foreach (var originalRecord in groupSortedByOriginalisMatched)
+                {
+
+
+
+                    originalRecord.Uid = unique_identifier;
+
+                    if (groupCount > 1)
+                    {
+                        originalRecord.isMatched = true;
+                    }
+                }
+            }
+
+
 
 
 
@@ -212,53 +233,23 @@ namespace ProgrammingExercise
             //        {
             //            Console.Write(((IDictionary<string, object>)record)[filter].ToString());
             //        }
-
-
             //    }
             //    Console.WriteLine();
             //}
 
-
         }
 
-        private static List<dynamic> ReadCsvFile(ref string[] args)
+        static ExpandoObject DeepCopy(ExpandoObject original)
         {
-            List<dynamic> records;
-            using (var reader = new StreamReader(args[args.Length - 1]))
-            //Fill up the record list from the csv file 
-            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
-            {
-                csv.Read();
-                csv.ReadHeader();
+            var clone = new ExpandoObject();
 
-                args = ArgumentsVerification(args, csv.HeaderRecord);
+            var _original = (IDictionary<string, object>)original;
+            var _clone = (IDictionary<string, object>)clone;
 
-                records = csv.GetRecords<dynamic>().ToList();
+            foreach (var kvp in _original)
+                _clone.Add(kvp.Key, kvp.Value is ExpandoObject ? DeepCopy((ExpandoObject)kvp.Value) : kvp.Value);
 
-                foreach (var record in records)
-                {
-                    var obj = record as ExpandoObject;
-                    ((IDictionary<string, object>)obj)["Uid"] = Guid.NewGuid().ToString();
-
-                    foreach (var filter in args)
-                    {
-                        ((IDictionary<string, object>)obj)[filter] = RemoveWhitespace(((IDictionary<string, object>)obj)[filter].ToString());
-
-                    }
-
-
-
-
-
-
-
-
-                    //var keys = obj.Select(a => a.Key).ToList();
-                    //var values = obj.Select(a => a.Value).ToList
-                }
-            }
-
-            return records;
+            return clone;
         }
 
         private static void WriteCsvFile(List<dynamic> records)
@@ -303,10 +294,7 @@ namespace ProgrammingExercise
 
         }
 
-        private static bool HasProperty(ExpandoObject obj, string propertyName)
-        {
-            return obj != null && ((IDictionary<String, object>)obj).ContainsKey(propertyName);
-        }
+      
     }
 
 

@@ -55,14 +55,14 @@ namespace ProgrammingExercise
 
 
                 //Adds 
-                headerRow.Where(c => c.StartsWith(arguments[i],StringComparison.OrdinalIgnoreCase)).ToList().ForEach(x =>
-               {
-                   if (!args2.Contains(x))
-                   {
-                       args2.Add(x);
-                   }
+                headerRow.Where(c => c.StartsWith(arguments[i], StringComparison.OrdinalIgnoreCase)).ToList().ForEach(x =>
+                {
+                    if (!args2.Contains(x))
+                    {
+                        args2.Add(x);
+                    }
 
-               });
+                });
 
 
 
@@ -97,10 +97,12 @@ namespace ProgrammingExercise
 
         }
 
-        private static (List<dynamic>, IEnumerable<(string, int)>) ReadCsvFile(ref string[] args)
+        private static (List<dynamic>, IDictionary<string, HashSet<int>>) ReadCsvFile(ref string[] args)
         {
             List<dynamic> records = new List<dynamic>();
-            ICollection<(string, int)> records_values = new List<(string, int)>();
+            //ICollection<(string, int)> records_values = new List<(string, int)>();
+            IDictionary<string, HashSet<int>> records_values = new Dictionary<string, HashSet<int>>();
+
             Regex phone_regex = new Regex("[^a-zA-Z0-9]");
 
             //Reads the file in args
@@ -127,12 +129,21 @@ namespace ProgrammingExercise
 
                         if (!string.IsNullOrEmpty(filterValue))
                         {
-                            if (filter.StartsWith("Phone"))
+                            if (filter.StartsWith("Phone", StringComparison.OrdinalIgnoreCase))
                             {
                                 filterValue = (phone_regex.Replace(filterValue, ""));
 
                             }
-                            records_values.Add((filterValue, index));
+
+
+                            if (records_values.ContainsKey(filterValue))
+                            {
+                                records_values[filterValue].Add(index);
+                                continue;
+                            }
+
+                            records_values.Add(filterValue, new HashSet<int> { index });
+
                         }
                     }
 
@@ -143,54 +154,52 @@ namespace ProgrammingExercise
 
             }
 
-            return (records, records_values.AsEnumerable());
+            return (records, records_values);
         }
 
 
-        private static void FindMatchesByType(string[] args, List<dynamic> records, IEnumerable<(string, int)> records_values)
+        private static void FindMatchesByType(string[] args, List<dynamic> records, IDictionary<string, HashSet<int>> records_values)
         {
 
 
             //Grouping by values to be matched (phones and emails or others)
-            var groupedBy = records_values.GroupBy(x => x.Item1);
 
 
-            foreach (var group in groupedBy)
+            foreach (var key in records_values)
             {
+                var groupCount = key.Value.Count;
+                string unique_identifier;
 
+                ICollection<dynamic> group = new List<dynamic>();
 
-                /* THIS IS THE CORE DIFFERENCE */
-                //this gets the original records REFERENCES from the original list 
-                var original_records = group.Select(record =>
-                       //transorm current group's record to original records using Item2 wich is the index in the original list
-                       records[record.Item2]
-                );
+                foreach (var index in key.Value)
+                {
 
+                    group.Add(records[index]);
 
-                var groupCount = original_records.Count();
+                }
 
-                string unique_identifier = original_records.FirstOrDefault(record =>
-                  record.isMatched == true
-                 )?.Uid;
+                var isMatchedRecord = group.AsEnumerable().FirstOrDefault(r => r.isMatched == true);
 
-                if (unique_identifier is null)
+                if (isMatchedRecord == null)
                 {
                     unique_identifier = Guid.NewGuid().ToString();
                 }
-
-                foreach (var record in original_records)
+                else
                 {
+                    unique_identifier = isMatchedRecord.Uid;
+                }
 
+
+                foreach (var record in group)
+                {
                     record.Uid = unique_identifier;
-
                     if (groupCount > 1)
                     {
                         record.isMatched = true;
                     }
                 }
             }
-
-
 
 
 

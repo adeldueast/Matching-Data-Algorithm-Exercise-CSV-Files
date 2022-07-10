@@ -100,7 +100,7 @@ namespace ProgrammingExercise
         private static (List<dynamic>, IDictionary<string, HashSet<int>>) ReadCsvFile(ref string[] args)
         {
             List<dynamic> records = new List<dynamic>();
-            //ICollection<(string, int)> records_values = new List<(string, int)>();
+            //dasds
             IDictionary<string, HashSet<int>> records_values = new Dictionary<string, HashSet<int>>();
 
             Regex phone_regex = new Regex("[^a-zA-Z0-9]");
@@ -136,6 +136,7 @@ namespace ProgrammingExercise
                             }
 
 
+                            //555-
                             if (records_values.ContainsKey(filterValue))
                             {
                                 records_values[filterValue].Add(index);
@@ -203,18 +204,19 @@ namespace ProgrammingExercise
 
 
 
-            //foreach (var record in records)
-            //{
-            //    Console.Write($"{record.Uid} - ");
-            //    foreach (var filter in args)
-            //    {
-            //        if (((IDictionary<string, object>)record).ContainsKey(filter))
-            //        {
-            //            Console.Write(((IDictionary<string, object>)record)[filter].ToString());
-            //        }
-            //    }
-            //    Console.WriteLine();
-            //}
+            foreach (var record in records)
+            {
+                Console.Write($"{record.Uid} - ");
+                foreach (var filter in args)
+                {
+                    if (((IDictionary<string, object>)record).ContainsKey(filter))
+                    {
+                        Console.Write(((IDictionary<string, object>)record)[filter].ToString());
+                    }
+                }
+                Console.WriteLine();
+
+            }
 
         }
 
